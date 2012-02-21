@@ -1,7 +1,7 @@
 package com.example;
 
 import android.app.Activity;
-import android.content.Intent;
+import android.database.Cursor;
 import android.os.Bundle;
 import android.view.View;
 import android.widget.Button;
@@ -12,41 +12,78 @@ public class NoteEdit extends Activity {
     private EditText bodyField;
     private Long rowId;
 
+    private NotesDbAdapter dbAdapter;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
+        dbAdapter = new NotesDbAdapter(this);
+        dbAdapter.open();
+
         setContentView(R.layout.note_edit);
+
         setTitle(R.string.edit_note);
         titleField = (EditText) findViewById(R.id.title);
         bodyField = (EditText) findViewById(R.id.body);
         Button confirm = (Button) findViewById(R.id.confirm);
-        rowId = null;
-        Bundle extras = getIntent().getExtras();
-        if (extras != null) {
-            String title = extras.getString(NotesDbAdapter.KEY_TITLE);
-            String body = extras.getString(NotesDbAdapter.KEY_BODY);
-            rowId = extras.getLong(NotesDbAdapter.KEY_ROWID);
-            if(title != null) {
-                titleField.setText(title);
-            }
-            if(body != null) {
-                bodyField.setText(body);
-            }
+
+        rowId = (savedInstanceState == null) ? null :
+                (Long) savedInstanceState.getSerializable(NotesDbAdapter.KEY_ROWID);
+        if (rowId == null) {
+            Bundle extras = getIntent().getExtras();
+            rowId = extras != null ? extras.getLong(NotesDbAdapter.KEY_ROWID) : null;
         }
+        populateFields();
         confirm.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                Bundle bundle = new Bundle();
-                bundle.putString(NotesDbAdapter.KEY_TITLE, titleField.getText().toString());
-                bundle.putString(NotesDbAdapter.KEY_BODY, bodyField.getText().toString());
-                if(rowId != null) {
-                    bundle.putLong(NotesDbAdapter.KEY_ROWID, rowId);
-                }
-                Intent intent = new Intent();
-                intent.putExtras(bundle);
-                setResult(RESULT_OK, intent);
+                setResult(RESULT_OK);
                 finish();
             }
         });
+    }
+
+    @Override
+    protected void onSaveInstanceState(Bundle outState) {
+        super.onSaveInstanceState(outState);
+        saveState();
+        outState.putSerializable(NotesDbAdapter.KEY_ROWID, rowId);
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        saveState();
+    }
+
+    private void saveState() {
+        String title = titleField.getText().toString();
+        String body = bodyField.getText().toString();
+
+        if (rowId == null) {
+            long id = dbAdapter.createNote(title, body);
+            if (id > 0) {
+                rowId = id;
+            }
+        } else {
+            dbAdapter.updateNote(rowId, title, body);
+        }
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        populateFields();
+    }
+
+
+    private void populateFields() {
+        if (rowId != null) {
+            Cursor note = dbAdapter.fetchNote(rowId);
+            startManagingCursor(note);
+            titleField.setText(note.getString(note.getColumnIndexOrThrow(NotesDbAdapter.KEY_TITLE)));
+            bodyField.setText(note.getString(note.getColumnIndexOrThrow(NotesDbAdapter.KEY_BODY)));
+        }
     }
 }

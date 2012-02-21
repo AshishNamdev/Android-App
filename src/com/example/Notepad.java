@@ -20,7 +20,6 @@ public class Notepad extends ListActivity {
     private static final int DELETE_ID = Menu.FIRST + 1;
 
     private NotesDbAdapter dbAdapter;
-    private Cursor notesCursor;
 
     /**
      * Called when the activity is first created.
@@ -75,38 +74,15 @@ public class Notepad extends ListActivity {
     protected void onListItemClick(ListView l, View v, int position, long id) {
         super.onListItemClick(l, v, position, id);
 
-        Cursor c = notesCursor;
-        c.moveToPosition(position);
         Intent i = new Intent(this, NoteEdit.class);
         i.putExtra(NotesDbAdapter.KEY_ROWID, id);
-        i.putExtra(NotesDbAdapter.KEY_TITLE, c.getString(c.getColumnIndexOrThrow(NotesDbAdapter.KEY_TITLE)));
-        i.putExtra(NotesDbAdapter.KEY_BODY, c.getString(c.getColumnIndexOrThrow(NotesDbAdapter.KEY_BODY)));
         startActivityForResult(i, ACTIVITY_EDIT);
     }
 
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent intent) {
         super.onActivityResult(requestCode, resultCode, intent);
-
-        Bundle extras = intent.getExtras();
-        switch(requestCode) {
-            case ACTIVITY_CREATE:
-                String title = extras.getString(NotesDbAdapter.KEY_TITLE);
-                String body = extras.getString(NotesDbAdapter.KEY_BODY);
-                dbAdapter.createNote(title, body);
-                fillData();
-                break;
-            case ACTIVITY_EDIT:
-                Long rowId = extras.getLong(NotesDbAdapter.KEY_ROWID);
-                if(rowId != null) {
-                    String editTitle = extras.getString(NotesDbAdapter.KEY_TITLE);
-                    String editBody = extras.getString(NotesDbAdapter.KEY_BODY);
-                    dbAdapter.updateNote(rowId, editTitle, editBody);
-                }
-                fillData();
-                break;
-        }
-
+        fillData();
     }
 
     private void createNote() {
@@ -115,7 +91,7 @@ public class Notepad extends ListActivity {
     }
 
     private void fillData() {
-        notesCursor = dbAdapter.fetchAllNotes();
+        Cursor notesCursor = dbAdapter.fetchAllNotes();
         startManagingCursor(notesCursor);
 
         String[] from = {NotesDbAdapter.KEY_TITLE};
